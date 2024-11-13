@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Location Sharing</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 1.2rem;
+        }
+        #stopButton {
+            background-color: #f44336;
+            margin-left: 10px;
+        }
+        #stopButton:hover {
+            background-color: #e53935;
+        }
+    </style>
+</head>
+<body>
+    <h1>Driver: Share Your Location</h1>
+    <button id="shareButton">Share My Location</button>
+    <button id="stopButton" style="display: none;">Stop Sharing</button>
+    <div id="status"></div>
+    <button id="logout">Logout</button>
+    <script>
+        let shareInterval; // Variable to hold the interval ID
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            alert('You must be logged in to access this page.');
+            window.location.href = 'login.html'; // Redirect to login
+        } else {
+            // Decode the token to check the role
+            const payload = JSON.parse(atob(token.split('.')[1])); // Decode payload from JWT
+            if (payload.role !== 'driver') {
+                alert('Access denied. This page is for drivers only.');
+                window.location.href = 'index.html'; // Redirect user to their dashboard
+            }
+        }
+
+        const shareButton = document.getElementById('shareButton');
+        const stopButton = document.getElementById('stopButton');
+        const statusDiv = document.getElementById('status');
+
+        // Function to fetch location and send to server
+        async function sendLocation() {
+            if (!navigator.geolocation) {
+                statusDiv.innerText = "Geolocation is not supported by your browser.";
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+
+                try {
+                    const response = await fetch('http://localhost:5000/api/location', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ latitude, longitude })
+                    });
+
+                    if (response.ok) {
+                        statusDiv.innerText = "Location shared successfully!";
+                    } else if (response.status === 401 || response.status === 403) {
+                        alert('Session expired. Please log in again.');
+                        localStorage.removeItem('token');
+                        window.location.href = 'login.html'; // Redirect to login
+                    } else {
+                        const result = await response.json();
+                        statusDiv.innerText = result.message || "Error sharing location.";
+                    }
+                } catch (error) {
+                    statusDiv.innerText = "Network error. Please try again.";
+                    console.error(error);
+                }
+            });
+        }
+
+        // Start sharing location
+        shareButton.addEventListener('click', () => {
+            if (shareInterval) {
+                clearInterval(shareInterval); // Clear any previous interval
+            }
+            shareInterval = setInterval(sendLocation, 10000); // Send location every 10 seconds
+            statusDiv.innerText = "Location sharing started!";
+            shareButton.style.display = 'none';
+            stopButton.style.display = 'inline-block';
+        });
+
+        // Stop sharing location
+        stopButton.addEventListener('click', async () => {
+    clearInterval(shareInterval); // Stop the interval
+    shareInterval = null;
+
+    try {
+        const response = await fetch('http://localhost:5000/api/location/stop', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const result = await response.json(); // Parse JSON response
+
+        if (response.ok) {
+            statusDiv.innerText = "Location sharing stopped and data removed.";
+            console.log(result); // Log successful result
+        } else {
+            statusDiv.innerText = result.message || "Error stopping location sharing.";
+            console.error("Error:", result);
+        }
+    } catch (error) {
+        statusDiv.innerText = "Network error. Please try again.";
+        console.error("Network Error:", error);
+    }
+
+    shareButton.style.display = 'inline-block';
+    stopButton.style.display = 'none';
+});
+
+        // Logout functionality
+        document.getElementById('logout').addEventListener('click', () => {
+            clearInterval(shareInterval); // Stop location sharing if logged out
+            localStorage.removeItem('token');
+            window.location.href = 'login.html'; // Redirect to login page
+        });
+    </script>
+</body>
+</html>

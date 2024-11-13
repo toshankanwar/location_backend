@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        form {
+            max-width: 400px;
+            margin: auto;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            margin-top: 10px;
+            font-size: 1rem;
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Register</h1>
+    <form id="registerForm">
+        <label for="role">Role:</label>
+        <select id="role" required>
+            <option value="" disabled selected>Select your role</option>
+            <option value="user">User</option>
+            <option value="driver">Driver</option>
+        </select>
+        <label for="username">Username:</label>
+        <input type="text" id="username" placeholder="Enter your username" required>
+        <label for="password">Password:</label>
+        <input type="password" id="password" placeholder="Enter your password" required>
+        <button type="submit">Register</button>
+        <div id="status"></div>
+    </form>
+    <a href="login.html">Already have an account? Login here</a>
+
+    <script>
+        const form = document.getElementById('registerForm');
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const role = document.getElementById('role').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const statusDiv = document.getElementById('status');
+
+            try {
+                const response = await fetch(`http://localhost:5000/api/auth/register/${role}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusDiv.style.color = 'green';
+                    statusDiv.innerText = 'Registration successful!';
+                } else {
+                    statusDiv.style.color = 'red';
+                    statusDiv.innerText = result.message || 'Error during registration';
+                }
+            } catch (error) {
+                statusDiv.innerText = 'Network error. Please try again.';
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>

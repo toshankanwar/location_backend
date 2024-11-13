@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Locations</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBc2xiUHb8z-JfuXTM6xpXjHoCM-r5jVIo"></script> <!-- Replace YOUR_API_KEY with your actual API key -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #map {
+            height: 500px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        #logout {
+            margin-bottom: 20px;
+        }
+        #welcome {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>All Driver Locations</h1>
+    <div id="welcome"></div>
+    <button id="logout">Logout</button>
+    <div id="map"></div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        let map; // Google Map instance
+        const markers = {}; // Store markers for each driver by their username
+
+        if (!token) {
+            alert('You must be logged in to access this page.');
+            window.location.href = 'login.html'; // Redirect to login
+        } else {
+            // Decode the token to check the role and extract username
+            const payload = JSON.parse(atob(token.split('.')[1])); // Decode payload from JWT
+            const username = payload.username;
+            const role = payload.role;
+
+            // Display the logged-in user's name
+            const welcomeDiv = document.getElementById('welcome');
+            welcomeDiv.textContent = `Welcome, ${username}!`;
+
+            // Restrict access based on role
+            if (role !== 'user') {
+                alert('Access denied. This page is for users only.');
+                window.location.href = 'driver.html'; // Redirect driver to their location page
+            }
+        }
+
+        document.getElementById('logout').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+            window.location.href = 'login.html'; // Redirect to login page
+        });
+
+        function initMap() {
+            // Initialize the map centered at a default location
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 20.5937, lng: 78.9629 }, // Default center: India
+                zoom: 5,
+            });
+        }
+
+        async function fetchDriverLocations() {
+            try {
+                const response = await fetch('http://localhost:5000/api/location', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        alert('Session expired. Please log in again.');
+                        window.location.href = 'login.html'; // Redirect to login
+                    }
+                    throw new Error("Failed to fetch driver locations.");
+                }
+
+                const drivers = await response.json();
+
+                // Update map with driver locations
+                updateMapWithDrivers(drivers);
+            } catch (error) {
+                console.error("Error fetching driver locations:", error);
+            }
+        }
+
+        function updateMapWithDrivers(drivers) {
+            // Track currently active drivers
+            const activeDrivers = new Set(drivers.map(driver => driver.username));
+
+            // Add or update markers for active drivers
+            drivers.forEach(driver => {
+                const { username, latitude, longitude } = driver;
+
+                // Update marker position if it exists, otherwise create a new marker
+                if (markers[username]) {
+                    markers[username].setPosition({ lat: latitude, lng: longitude });
+                } else {
+                    const marker = new google.maps.Marker({
+                        position: { lat: latitude, lng: longitude },
+                        map,
+                        label: {
+                            text: username,
+                            fontSize: "16px",
+                            fontWeight: "bold",
+                        },
+                        title: username,
+                    });
+
+                    markers[username] = marker;
+                }
+            });
+
+            // Remove markers for drivers who stopped sharing their location
+            Object.keys(markers).forEach(username => {
+                if (!activeDrivers.has(username)) {
+                    markers[username].setMap(null); // Remove marker from map
+                    delete markers[username]; // Delete marker from memory
+                }
+            });
+        }
+
+        // Initialize the map
+        initMap();
+
+        // Fetch locations when the page loads and update every 10 seconds
+        fetchDriverLocations();
+        setInterval(fetchDriverLocations, 10000);
+    </script>
+</body>
+</html>
+
+
+

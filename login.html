@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        form {
+            max-width: 300px;
+            margin: auto;
+        }
+        input {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            color: red;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Login</h1>
+    <form id="loginForm">
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+        <p id="status"></p>
+    </form>
+    <a href="register.html">Register</a>
+
+    <script>
+       const form = document.getElementById('loginForm');
+form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const statusDiv = document.getElementById('status');
+
+    try {
+        const response = await fetch('http://localhost:5000/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            statusDiv.style.color = 'green';
+            statusDiv.innerText = result.message;
+
+            // Save the token and role to localStorage
+            localStorage.setItem('token', result.token);
+            localStorage.setItem('role', result.role);
+
+            // Redirect to respective page based on role
+            if (result.role === 'driver') {
+                window.location.href = 'driver.html';
+            } else if (result.role === 'user') {
+                window.location.href = 'index.html';
+            }
+        } else {
+            statusDiv.style.color = 'red';
+            statusDiv.innerText = result.message || 'Login failed.';
+        }
+    } catch (error) {
+        statusDiv.innerText = 'Network error. Please try again.';
+        console.error(error);
+    }
+});
+
+    </script>
+</body>
+</html>
