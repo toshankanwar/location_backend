@@ -111,7 +111,7 @@
             if (shareInterval) {
                 clearInterval(shareInterval); // Clear any previous interval
             }
-            shareInterval = setInterval(sendLocation, 5000); // Send location every 5 seconds
+            shareInterval = setInterval(sendLocation, 1000); // Send location every 5 seconds
             statusDiv.innerText = "Location sharing started!";
             shareButton.style.display = 'none';
             stopButton.style.display = 'inline-block';
